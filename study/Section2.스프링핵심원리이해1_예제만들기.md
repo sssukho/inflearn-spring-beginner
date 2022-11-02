@@ -362,6 +362,145 @@
 
 
 
+## 주문과 할인 도메인 개발
+
+- 할인 정책 인터페이스
+
+  ``` java
+  package hello.core.discount;
+  
+  import hello.core.member.Member;
+  
+  public interface DiscountPolicy {
+      /**
+       * @return 할인 대상 금액
+       */
+      int discount(Member member, int price);
+  }
+  ```
+
+- 정액 할인 정책 구현체
+
+  ``` java
+  package hello.core.discount;
+  
+  import hello.core.member.Grade;
+  import hello.core.member.Member;
+  
+  public class FixDiscountPolicy implements DiscountPolicy {
+  
+      private int discountFixAmount = 1000; // 1000원 할인
+  
+      @Override
+      public int discount(Member member, int price) {
+          if (member.getGrade() == Grade.VIP) { // enum 타입은 == 쓰는게 맞음
+              return discountFixAmount;
+          } else {
+              return 0;
+          }
+      }
+  }
+  ```
+
+  - VIP면 1000원 할인, 아니면 할인 없음(0 return)
+  - 참고로 enum 타입은 == 로 동등 비교 하는게 맞음
+
+- 주문 엔티티
+
+  ``` java
+  package hello.core.order;
+  
+  public class Order {
+  
+      private Long memberId;
+      private String itemName;
+      private int itemPrice;
+      private int discountPrice;
+  
+      public Order(Long memberId, String itemName, int itemPrice, int discountPrice) {
+          this.memberId = memberId;
+          this.itemName = itemName;
+          this.itemPrice = itemPrice;
+          this.discountPrice = discountPrice;
+      }
+  
+      public int calculatePrice() {
+          return itemPrice - discountPrice;
+      }
+  
+      public Long getMemberId() {
+          return memberId;
+      }
+  
+      public String getItemName() {
+          return itemName;
+      }
+  
+      public int getItemPrice() {
+          return itemPrice;
+      }
+  
+      public int getDiscountPrice() {
+          return discountPrice;
+      }
+  
+      @Override
+      public String toString() {
+          return "Order{" +
+                  "memberId='" + memberId +
+                  ", itemName='" + itemName + '\'' +
+                  ", itemPrice=" + itemPrice +
+                  ", discountPrice=" + discountPrice +
+                  '}';
+      }
+  }
+  ```
+
+- 주문 서비스 인터페이스
+
+  ``` java
+  package hello.core.order;
+  
+  public interface OrderService {
+      Order createOrder(Long memberId, String itemName, int itemPrice);
+  }
+  ```
+
+- 주문 서비스 구현체
+
+  ``` java
+  package hello.core.order;
+  
+  import hello.core.discount.DiscountPolicy;
+  import hello.core.discount.FixDiscountPolicy;
+  import hello.core.member.Member;
+  import hello.core.member.MemberRepository;
+  import hello.core.member.MemoryMemberRepository;
+  
+  public class OrderServiceImpl implements OrderService {
+  
+      private final MemberRepository memberRepository = new MemoryMemberRepository();
+      private final DiscountPolicy discountPolicy = new FixDiscountPolicy();
+  
+      @Override
+      public Order createOrder(Long memberId, String itemName, int itemPrice) {
+          Member member = memberRepository.findById(memberId);
+          int discountPrice = discountPolicy.discount(member, itemPrice);
+  
+          return new Order(memberId, itemName, itemPrice, discountPrice);
+      }
+  }
+  ```
+
+  - 주문 생성 요청이 오면, 회원 정보를 조회하고, 할인 정책을 적용한 다음 주문 객체를 생성해서 반환한다. 메모리 회원 리포지토리와 고정 금액 할인 정책을 구현체로 생성한다.
+  - 할인 정책과 관련된 내용은 OrderServiceImpl 단에서 전혀 아는게 없다. 이는 즉, 단일 책임 원칙(SRP)를 잘 지켜서 설계한 결과라고 할 수 있다.
+
+
+
+
+
+
+
 
 
 
