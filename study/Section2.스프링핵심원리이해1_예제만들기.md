@@ -100,6 +100,225 @@
 
 
 
+## 회원 도메인 개발
+
+### 회원 엔티티
+
+- 회원 등급
+
+  ``` java
+  package hello.core.member;
+  
+  public enum Grade {
+    BASIC,
+    VIP
+  }
+  ```
+
+- 회원 엔티티
+
+  ``` java
+  package hello.core.member;
+  
+  public class Member {
+  
+      private Long id;
+      private String name;
+      private Grade grade;
+  
+      public Member(Long id, String name, Grade grade) {
+          this.id = id;
+          this.name = name;
+          this.grade = grade;
+      }
+  
+      public Long getId() {
+          return id;
+      }
+  
+      public void setId(Long id) {
+          this.id = id;
+      }
+  
+      public String getName() {
+          return name;
+      }
+  
+      public void setName(String name) {
+          this.name = name;
+      }
+  
+      public Grade getGrade() {
+          return grade;
+      }
+  
+      public void setGrade(Grade grade) {
+          this.grade = grade;
+      }
+  
+  }
+  
+  ```
+
+
+
+### 회원 저장소
+
+- 회원 저장소 인터페이스
+
+  ``` java
+  package hello.core.member;
+  
+  public interface MemberRepository {
+  
+      void save(Member member);
+  
+      Member findById(long memberId);
+  }
+  ```
+
+- 메모리 회원 저장소 구현체
+
+  ``` java
+  package hello.core.member;
+  
+  public class MemberServiceImpl implements MemberService {
+  
+      private final MemberRepository memberRepository = new MemoryMemberRepository();
+  
+      @Override
+      public void join(Member member) {
+          memberRepository.save(member);
+      }
+  
+      @Override
+      public Member findMember(Long memberId) {
+          return memberRepository.findById(memberId);
+      }
+  }
+  ```
+
+  - 데이터베이스가 아직 확정이 안되었다. 그래도 개발은 진행해야 하니 가장 단순한, 메모리 회원 저장소를 구현해서 우선 개발을 진행하자.
+
+    > 참고: `HashMap` 은 동시성 이슈가 발생할 수 있다. 이런 경우 `ConcurrentHashMap` 을 사용하자.
+
+
+
+### 회원 서비스
+
+- 회원 서비스 인터페이스
+
+  ``` java
+  package hello.core.member;
+  
+  public interface MemberService {
+  
+      void join(Member member);
+  
+      Member findMember(Long memberId);
+  }
+  ```
+
+- 회원 서비스 구현체
+
+  ``` java
+  package hello.core.member;
+  
+  public class MemberServiceImpl implements MemberService {
+  
+      private final MemberRepository memberRepository = new MemoryMemberRepository();
+  
+      @Override
+      public void join(Member member) {
+          memberRepository.save(member);
+      }
+  
+      @Override
+      public Member findMember(Long memberId) {
+          return memberRepository.findById(memberId);
+      }
+  }
+  ```
+
+
+
+
+### 회언 도메인 실행과 테스트
+
+- 회원 도메인 - 회원 가입 main
+
+  ``` java
+  package hello.core;
+  
+  import hello.core.member.Grade;
+  import hello.core.member.Member;
+  import hello.core.member.MemberService;
+  import hello.core.member.MemberServiceImpl;
+  
+  public class SpringBeginnerApplication {
+    public static void main(String[] args) {
+      MemberService memberService = new MemberServiceImpl();
+      Member member = new Member(1L, "memberA", Grade.VIP);
+      memberService.join(member);
+      
+      Member findMember = memberSErvice.findMember(1L);
+      System.out.println("new member = " + member.getName());
+      System.out.println("find Member = " + findMember.getName());
+    }
+  }
+  
+  ```
+
+  - 애플리케이션 로직으로 이렇게 테스트 하는 것은 좋은 방법이 아니다. JUnit 테스트 사용할 것!
+
+- 회원 도메인 - 회원 가입 테스트
+
+  ``` java
+  package hello.core.member;
+  
+  import org.assertj.core.api.Assertions;
+  import org.junit.jupiter.api.Test;
+  
+  import org.assertj.core.api.Assertions;
+  
+  class MemberServiceTest {
+    MemberService memberService = new MemberService();
+    
+    @Test
+    void join() {
+      // given
+      Member member = new Member(1L, "memberA", Grade.VIP);
+      
+      // when
+      memberService.join(member);
+      Member findMember = memberService.findMember(1L);
+      
+      // then
+      assertThat(member).isEqualTo(findMember);
+    }
+  }
+  ```
+
+
+
+### 회원 도메인 설계의 문제점
+
+- 다른 저장소로 변경할 때 OCP 원칙을 잘 준수할 수 있을까?
+- DIP를 잘 지키고 있을까?
+- 의존관계가 인터페이스 뿐만 아니라 구현까지 모두 의존하는 문제점이 있음 => 주문까지 만들고나서 문제점과 해결 방안 설명할 예정
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
