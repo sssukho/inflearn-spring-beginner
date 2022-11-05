@@ -200,11 +200,14 @@ public class OrderServiceImpl implements OrderService {
   ```
 
 - AppConfig는 애플리케이션의 실제 동작에 필요한 구현 객체를 생성한다.
+
   - `MemoryserviceImpl`
   - `MemoryMemberRepository`
   - `OrderServiceImpl`
   - `FixDiscountPolicy`
+
 - AppConfig는 생성한 객체 인스턴스의 참조(레퍼런스)를 생성자를 통해서 주입(연결)해준다.
+
   - `MemberServiceImpl` -> `MemoryMemberRepository`
   - `OrdrServiceImpl` -> `MemoryMemberRepository`, `FixDiscountPolicy`
 
@@ -355,13 +358,327 @@ public class OrderServiceImpl implements OrderService {
   ```
 
 - AppConfig를 통해서 관심사를 확실하게 분리했다.
+
 - 배역, 배우를 생각해보자.
+
 - AppConfig는 공연 기획자다.
+
 - AppConfig는 구체 클래스를 선택한다. 배역에 맞는 담당 배우를 선택한다. 애플리케이션이 어떻게 동작해야 할지 전체 구성을 책임진다.
+
 - 이제 각 배우들은 담당 기능을 실행하는 책임만 지면 된다.
+
 - `OrderServiceImpl` 은 기능을 실행하는 책임만 지면 된다.
 
 
 
+## AppConfig 리팩터링
 
+현재 AppConfig 를 보면 중복이 있고, 역할에 따른 구현이 잘 안보인다.
+
+- 리팩토링 전
+
+  ``` java
+  package hello.core;
+  
+  import hello.core.discount.DiscountPolicy;
+  import hello.core.discount.FixDiscountPolicy;
+  import hello.core.member.MemberRepository;
+  import hello.core.member.MemberService;
+  import hello.core.member.MemberServiceImpl;
+  import hello.core.member.MemoryMemberRepository;
+  import hello.core.order.OrderService;
+  import hello.core.order.OrderServiceImpl;
+  
+  public class AppConfig {
+    public MemberService memberService() {
+      return new MemberServiceImpl(new MemoryMemberRepository());
+    }
+    
+    public OrderService orderService() {
+      return new OrderServiceImpl(new MemoryMemberRepository(), new FixDiscountPolicy());  
+    }
+  }
+  ```
+
+- 리팩토링 후
+
+  ``` java
+  package hello.core;
+  
+  import hello.core.discount.DiscountPolicy;
+  import hello.core.discount.FixDiscountPolicy;
+  import hello.core.member.MemberRepository;
+  import hello.core.member.MemberService;
+  import hello.core.member.MemberServiceImpl;
+  import hello.core.member.MemoryMemberRepository;
+  import hello.core.order.OrderService;
+  import hello.core.order.OrderServiceImpl;
+  
+  public class AppConfig {
+  
+      public MemberService memberService() {
+          return new MemberServiceImpl(memberRepository());
+      }
+  
+      public OrderService orderService() {
+          return new OrderServiceImpl(
+                  memberRepository(),
+                  discountPolicy());
+      }
+  
+      public MemberRepository memberRepository() {
+          return new MemoryMemberRepository();
+      }
+  
+      public DiscountPolicy discountPolicy() {
+          return new FixDiscountPolicy();
+      }
+  }
+  
+  ```
+
+  - `new MemoryMemberRepository()` 이 부분이 중복 제거되었다. 이제 `MemoryMemberRepository` 를 다른 구현체로 변경할 때 한 부분만 변경하면 된다.
+  - `AppConfig` 를 보면 역할과 구현 클래스가 한눈에 들어온다. 애플리케이션 전체 구성이 어떻게 되어있는지 빠르게 파악할 수 있다.
+
+
+
+## 새로운 구조와 할인 정책 적용
+
+- 처음으로 돌아가서 정액 할인 정책을 정률% 할인 정책으로 변경해보자.
+
+- FixDiscountPolicy -> RateDiscountPolicy
+
+- 어떤 부분만 변경하면 되겠는가? => AppConfig의 등장으로 애플리케이션이 크게 사용 영역과, 객체를 생성하고 구성(Configuration)하는 영역으로 분리되었다.
+
+  ![3-7](./img/3-7.png)
+
+  - `FixDiscountPolicy` -> `RateDiscountPolicy` 로 변경해도 구성 영역만 영향을 받고, 사용 영역은 전혀 영향을 받지 않는다.
+
+
+
+### 할인 정책 변경 구성 코드
+
+``` java
+package hello.core;
+
+import hello.core.discount.DiscountPolicy;
+import hello.core.discount.RateDiscountPolicy;
+import hello.core.member.MemberRepository;
+import hello.core.member.MemberService;
+import hello.core.member.MemberServiceImpl;
+import hello.core.member.MemoryMemberRepository;
+import hello.core.order.OrderService;
+import hello.core.order.OrderServiceImpl;
+
+public class AppConfig {
+
+    public MemberService memberService() {
+        return new MemberServiceImpl(memberRepository());
+    }
+
+    public OrderService orderService() {
+        return new OrderServiceImpl(
+                memberRepository(),
+                discountPolicy());
+    }
+
+    public MemberRepository memberRepository() {
+        return new MemoryMemberRepository();
+    }
+
+    public DiscountPolicy discountPolicy() {
+//        return new FixDiscountPolicy();
+        return new RateDiscountPolicy();
+    }
+    
+}
+```
+
+- `AppConfig` 에서 할인 정책 역할을 담당하는 구현을 `FixDiscountPolicy` -> `RateDiscountPolicy` 객체로 변경했다.
+  - 이제 할인 정책을 변겨해도, 애플리케이션의 구성 역할을 담당하는 AppConfig만 변경하면 된다. 클라이언트 코드인 `OrderServiceImpl` 를 포함해서 사용 영역의 어떤 코드도 변경할 필요가 없다.
+  - 구성 영역은 당연히 변경된다. 구성 역할을 담당하는 AppConfig를 애플리케이션이라는 공연의 기획자로 생각하자. 공연 기획자는 공연 참여자인 구현 객체들을 모두 알아야 한다.
+
+
+
+### 전체 흐름 정리
+
+- 새로운 할인 정책 개발
+  - 다형성 덕분에 새로운 정률 할인 정책 코드를 추가로 개발하는 것 자체는 아무 문제가 없음
+- 새로운 할인 정책 적용과 문제점
+  - 새로 개발한 정률 할인 정책을 적용하려고 하니 클라이언트 코드인 주문 서비스 구현체도 함께 변경해야함. 주문 서비스 클라이언트가 인터페이스인 DiscountPolicy 뿐만 아니라, 구현체 클래스인 FixDiscountPolicy 도 함께 의존 -> DIP 위반
+- 관심사의 분리
+  - 애플리케이션을 하나의 공연으로 생각
+  - 기존에는 클라이언트가 의존하는 서버 구현 객체를 직접 생성하고, 실행함
+  - 비유를 하면 기존에는 남자 주인공 배우가 공연도 하고, 동시에 여자 주인공도 직접 초빙하는 다양한 책임을 가지고 있음
+  - 공연을 구성하고, 담당 배우를 섭외하고, 지정하는 책임을 담당하는 별도의 공연 기획자가 나올 시점
+  - 공연 기획자인 AppConfig가 등장
+  - AppCOnfig는 애플리케이션의 전체 동작 방식을 구성(config) 하기 위해, 구현 객체를 생성하고, 연결하는 채깅ㅁ
+  - 이제부터 클라이언트는 객체는 자신의 역할을 실행하는 것만 집중, 권한이 줄어듦(책임이 명확해짐)
+- AppConfig 리팩터링
+  - 구성 정보에서 역할과 구현을 명확하게 분리
+  - 역할이 잘 드러남
+  - 중복 제거
+- 새로운 구조와 할인 정책 적용
+  - 정액 할인 정책 -> 정률% 할인 정책으로 변경
+  - AppConfig의 등장으로 애플리케이션이 크게 사용 영역과, 객체를 생성하고 구성(Configuration)하는 영역으로 분리
+  - 할인 정책을 변경해도 AppConfig가 있는 구성 영역만 변경하면 됨. 사용 영역은 변경할 필요가 없음. 물론 클라이언트 코드인 주문 서비스 코드도 변경하지 ㅇ낳음
+
+
+
+### IoC, DI, 그리고 컨테이너
+
+- 제어의 역전(Inversion of Control)
+  - 기존 프로그램은 클라이언트 구현 객체가 스스로 필요한 서벅 구현 객체를 생성하고, 연결하고, 실행했다. 한마디로 구현 객체가 프로그램의 제어 흐름을 스스로 조종했다. 개발자 입장에서는 자연스러운 흐름이다.
+  - 반면에 AppConfig 가 등장한 이후에 구현 객체는 자신의 로직을 실행하는 역할만 담당한다. 프로그램의 제어 흐름은 이제 AppConfig가 가져간다. 예를 들어서 `OrderServiceImpl` 은 필요한 인터페이스들을 호출하지만 어떤 구현 객체들이 실행될지 모른다.
+  - 프로그램에 대한 제어 흐름에 대한 권한은 모두 AppConfig가 가지고 있다. 심지어 `OrderServiceImpl` 도 AppConfig가 생성한다. 그리고 AppConfig는 `OrderServiceImpl` 이 아닌 OrderService 인터페이스의 다른 구현 객체를 생성하고 실행할 수도 있다. 그런 사실도 모른채 `OrderServiceImpl` 은 묵묵히 자신의 로직을 실행할 뿐이다.
+  - 이렇듯 프로그램의 제어 흐름을 직접 제어하는 것이 아니라 외부에서 관리하는 것을 제어의 역전(IoC)이라 한다.
+- 프레임워크 vs 라이브러리
+  - 내가 작성한 코드를 프레임워크가 제어하고, 대신 실행하면 그것은 프레임워크가 맞다. (JUnit)
+  - 반면에 내가 작성한 코드가 직접 제어의 흐름을 담당한다면 그것은 프레임워크가 아니라 라이브러리다.
+
+- 의존 관계 주입(DI)
+  - `OrderServiceImpl` 은 `DSiscountPolicy` 인터페이스에 의존한다. 실제 어떤 구현 객체가 사용될지는 모른다.
+  - 의존관계는 정적인 클래스 의존 관계와, 실행 시점에 결정되는 동적인 객체(인스턴스) 의존 관계 둘을 분리해서 생각해야 한다.
+    - 정적인 클래스 의존 관계
+      - 클래스가 사용하는 import 코드만 보고 의존 관계를 쉽게 판단할 수 있다. 정적인 의존관계는 애플리케이션을 실행하지 않아도 분석할 수 있다. 클래스 다이어 그램을 보면 OrderServiceImpl 은 MemberRepository, DiscoutPolicy 에 의존한다는 것을 알 수 있다. 그런데 이러한 클래스 의존 관계만으로는 실제 어떤 객체 ㅏOrderServiceIMpl에 주입될 지 알 수 없다.
+    - 동적인 객체 인스턴스 의존 관계 : 애플리케이션 실행 시점에 실제 생성된 객체 인스턴스의 참조가 연골된 의존 관계다.
+      - 애플리케이션 실행 시점(런타임)에 외부에서 실제 구현 객체를 생성하고 클라이언트에 전달해서 클라이언트와 서버의 실제 의존관계가 연결되는 것을 의존관계 주입이라 한다.
+      - 객체 인스턴스를 생성하고, 그 참조값을 전달해서 연결된다.
+      - 의존관계 주입을 사용하면 클라이언트 코드를 변경하지 않고, 클라이언트가 호출하는 대상의 타입 인스턴스를 변경할 수 있다.
+      - 의존관계 주입을 사용ㅎ마ㅕㄴ 정적인 클래스 의존관계를 변경하지 않고, 동적인 객체 인스턴스 의존관계를 쉽게 변경할 수 있다.
+- **AppConfig 처럼 객체를 생성하고 관리하면서 의존관계를 연결해주는 것을 IoC 컨테이너 또는 DI 컨테이너라한다.** 의존관계 주입에 초점을 맞추어 최근에는 주로 DI 컨테이너라 한다. 또는 어샘블러, 오브젝트 팩토리 등으로 불리기도 한다.
+
+
+
+
+
+## 스프링으로 전환하기
+
+지금까지 순수한 자바 코드만으로 DI를 적용했다. 이제 스프링을 사용해보자.
+
+- AppConfig 스프링 기반으로 변경
+
+  ``` java
+  package hello.core;
+  
+  import hello.core.discount.DiscountPolicy;
+  import hello.core.discount.RateDiscountPolicy;
+  import hello.core.member.MemberRepository;
+  import hello.core.member.MemberService;
+  import hello.core.member.MemberServiceImpl;
+  import hello.core.member.MemoryMemberRepository;
+  import hello.core.order.OrderService;
+  import hello.core.order.OrderServiceImpl;
+  import org.springframework.context.annotation.Bean;
+  import org.springframework.context.annotation.Configuration;
+  
+  @Configuration
+  public class AppConfig {
+  
+      @Bean
+      public MemberService memberService() {
+          return new MemberServiceImpl(memberRepository());
+      }
+  
+      @Bean
+      public OrderService orderService() {
+          return new OrderServiceImpl(
+                  memberRepository(),
+                  discountPolicy());
+      }
+  
+      @Bean
+      public MemberRepository memberRepository() {
+          return new MemoryMemberRepository();
+      }
+  
+      @Bean
+      public DiscountPolicy discountPolicy() {
+          return new RateDiscountPolicy();
+      }
+  
+  }
+  ```
+
+  - AppConfig에 설정을 구성한다는 뜻의 `@Configuration` 을 붙여준다.
+  - 각 메서드에 `@Bean` 을 붙여준다. 이렇게 하면 스프링 컨테이너에 스프링 빈으로 등록한다.
+
+- MemberApp에 스프링 컨테이너 적용
+
+  ``` java
+  package hello.core;
+  
+  import hello.core.member.Grade;
+  import hello.core.member.Member;
+  import hello.core.member.MemberService;
+  import org.springframework.context.ApplicationContext;
+  import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+  
+  public class MemberApp {
+      public static void main(String[] args) {
+  //        AppConfig appConfig = new AppConfig();
+  //        MemberService memberService = appConfig.memberService();
+  
+          ApplicationContext applicationContext = new AnnotationConfigApplicationContext(AppConfig.class);
+          MemberService memberService = applicationContext.getBean("memberService", MemberService.class);
+  
+          Member member = new Member(1L, "memberA", Grade.VIP);
+          memberService.join(member);
+  
+          Member findMember = memberService.findMember(1L);
+          System.out.println("new member = " + member.getName());
+          System.out.println("find Member = " + findMember.getName());
+  
+      }
+  }
+  ```
+
+- OrderApp에 스프링 컨테이너 적용
+
+  ``` java
+  package hello.core;
+  
+  import hello.core.member.Grade;
+  import hello.core.member.Member;
+  import hello.core.member.MemberService;
+  import hello.core.order.Order;
+  import hello.core.order.OrderService;
+  import org.springframework.context.ApplicationContext;
+  import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+  
+  public class OrderApp {
+  
+      public static void main(String[] args) {
+  //        AppConfig appConfig = new AppConfig();
+  //        MemberService memberService = appConfig.memberService();
+  //        OrderService orderService = appConfig.orderService();
+  
+          ApplicationContext applicationContext = new AnnotationConfigApplicationContext(AppConfig.class);
+          MemberService memberService = applicationContext.getBean("memberService", MemberService.class);
+          OrderService orderService = applicationContext.getBean("orderService", OrderService.class);
+  
+          long memberId = 1L;
+  
+          Member member = new Member(memberId, "memberA", Grade.VIP);
+          memberService.join(member);
+  
+          Order order = orderService.createOrder(memberId, "itemA", 10000);
+  
+          System.out.println("order = " + order);
+      }
+  }
+  ```
+
+ - 두 코드를 실행하면 스프링 관련 로그가 몇줄 실행되면서 기존과 동일한 결과가 출력된다.
+
+
+
+### 스프링 컨테이너
+
+- `ApplicationContext` 를 스프링 컨테이너라 한다.
+- 기존에는 개발자가 `AppConfig`를 사용해서 직접 객체를 생성하고 DI를 했지만, 이제부터는 스프링 컨테이너를 통해서 사용한다.
+- 스프링 컨테이너는 `@Configuration` 이 붙은 `AppConfig` 를 설정(구성) 정보로 사용한다. 여기서 `@Bean` 이라 적힌 메서드를 모두 호출해서 반환된 객체를 스프링 컨테이너에 등록한다. 이렇게 스프링 컨테이너에 등록된 객체를 스프링 빈이라 한다.
+- 스프링 빈은 `@Bean` 이 붙은 메서드의 명을 스프링 빈의 이름으로 사용한다. (`memberService`, `orderService`)
+- 이전에는 개발자가 필요한 객체를 `AppConfig` 를 사용해서 직접 조회했지만, 이제부터는 스프링 컨테이너를 통해서 필요한 스프링 빈(객체)를 찾아야 한다. 스프링 빈은 `applicationContext.getBean()` 메서드를 사용해서 찾을 수 있다.
+- 기존에는 개발자가 직접 자바코드로 모든 것을 했다면 이제부터는 스프링 컨테이너에 객체를 스프링 빈으로 등록하고, 스프링 컨테이너에서 스프링 빈을 찾아서 사용하도록 변경되었다.
 
