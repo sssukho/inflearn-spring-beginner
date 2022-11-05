@@ -48,3 +48,65 @@ ApplicationContext applicationContext = new AnnotationConfigApplicationContext(A
 
 > 참고: 스프링 빈을 생성하고, 의존관계를 주입하는 단계가 나누어져 있다. 그런데 이렇게 자바 코드로 스프링 빈을 등록하면 생성자를 호출하면서 의존관계 주입도 한번에 처리된다. 
 
+
+
+## 컨테이너에 등록된 모든 빈 조회
+
+스프링 컨테이너에 실제 스프링 빈들이 잘 등록 되었는지 확인해보자.
+
+``` java
+package hello.core.beanfind;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+import hello.core.AppConfig;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+
+class ApplicationContextInfoTest {
+    AnnotationConfigApplicationContext ac = new AnnotationConfigApplicationContext(AppConfig.class);
+
+    @Test
+    @DisplayName("모든 빈 출력하기")
+    void findAllBean() {
+        String[] beanDefinitionNames = ac.getBeanDefinitionNames();
+        for (String beanDefinitionName : beanDefinitionNames) {
+            Object bean = ac.getBean(beanDefinitionName);
+            System.out.println("name = " + beanDefinitionName + " object=" + bean);
+        }
+    }
+
+    @Test
+    @DisplayName("애플리케이션 빈 출력하기")
+    void findApplicationBean() {
+        String[] beanDefinitionNames = ac.getBeanDefinitionNames();
+        for (String beanDefinitionName : beanDefinitionNames) {
+            BeanDefinition beanDefinition = ac.getBeanDefinition(beanDefinitionName);
+
+            // Role ROLE_APPLICATION: 직접 등록한 애플리케이션 빈
+            // Role ROLE_INFRASTRUCTURE: 스프링이 내부에서 사용하는 빈
+            if (beanDefinition.getRole() == BeanDefinition.ROLE_APPLICATION) {
+                Object bean = ac.getBean(beanDefinitionName);
+                System.out.println("name = " + beanDefinitionName + " object=" + bean);
+            }
+        }
+    }
+}
+```
+
+- 모든 빈 출력하기
+  - 실행하면 스프링에 등록된 모든 빈 정보를 출력할 수 있다.
+  - `ac.getBeanDefinitionNames()` : 스프링에 등록된 모든 빈 이름을 조회한다.
+  - `ac.getBean()` : 빈 이름으로 빈 객체(인스턴스)를 조회한다.
+- 애플리케이션 빈 출력하기
+  - 스프링이 내부에서 사용하는 빈은 제외하고, 내가 등록한 빈만 출력해보자.
+  - 스프링이 내부에서 사용하는 빈은 `getRole()` 로 구분할 수 있다.
+    - `ROLE_APPLICATION`: 일반적으로 사용자가 정의한 빈
+    - `ROLE_INFRASTRUCTURE`: 스프링이 내부에서 사용하는 빈
+
+
+
+
+
