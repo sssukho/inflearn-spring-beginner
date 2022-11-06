@@ -479,7 +479,7 @@ public class ApplicationContextExtendsFindTest {
 ### BeanDefinition 살펴보기
 
 - BeanClassName: 생성할 빈의 클래스 명(자바 설정 처럼 팩토리 역할의 빈을 사용하면 없음)
-- factoryBeanName: 팩토리 역할의 빈을 사용할 경우 이름. ex) appConfig
+- factoryBeanName: 팩토리 역할의 빈을 사용할 경우 이름. ex) appConfig => 팩토리 메서드 를 써서 등록하는 방법이라고도 한다.
 - factorymethodName: 빈을 생성할 팩토리 메서드 지정. ex) memberService
 - Scope: 싱글톤(기본값) - 할당이 안되어 있는 것도 singleton
 - lazyInit: 스프링 컨테이너를 생성할 때 빈을 생성하는 것이 아니라, 실제 빈을 사용할 때 까지 최대한 생성을 지연처리 하는지 여부
