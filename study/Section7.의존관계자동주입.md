@@ -168,6 +168,11 @@ public void setNoBean3(Optional<Member> member) {
 }
 ```
 
+```
+noBean3 = Optional.empty
+noBean2 = null
+```
+
 - Member는 스프링 빈이 아니다.
 - `setNoBean1()` 은 `@Autowired(required = false)` 이므로 호출 자체가 안된다.
 
